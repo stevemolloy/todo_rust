@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{stdout, BufRead, BufReader, Write};
+use std::io::{stdin, stdout, BufRead, BufReader, Write};
 
 use crossterm::{
     cursor::MoveTo,
@@ -30,11 +30,11 @@ fn read_lines(filename: &str) -> Vec<String> {
         .collect()
 }
 
-fn filter_and_strip<'a>(lines: &'a Vec<String>, prefix: &'a str) -> Vec<&'a str> {
+fn filter_and_strip<'a>(lines: &'a Vec<String>, prefix: &'a str) -> Vec<String> {
     lines
         .iter()
         .filter(|s| s.starts_with(prefix))
-        .map(|s| s.strip_prefix(prefix).unwrap() as &str)
+        .map(|s| s.strip_prefix(prefix).unwrap().to_string())
         .collect()
 }
 
@@ -42,8 +42,8 @@ const PERSIST_FILE: &str = "/home/smolloy/.config/todo_rust/items";
 
 fn main() -> Result<()> {
     let lines = read_lines(PERSIST_FILE);
-    let mut todos: Vec<&str> = filter_and_strip(&lines, "TODO: ");
-    let mut dones: Vec<&str> = filter_and_strip(&lines, "DONE: ");
+    let mut todos: Vec<String> = filter_and_strip(&lines, "TODO: ");
+    let mut dones: Vec<String> = filter_and_strip(&lines, "DONE: ");
 
     let mut curr_item = 0;
     let mut tab = Tab::TODO;
@@ -93,6 +93,18 @@ fn main() -> Result<()> {
         }
 
         match read().unwrap() {
+            Event::Key(KeyEvent {
+                code: KeyCode::Char('a'),
+                ..
+            }) => {
+                disable_raw_mode()?;
+                let mut blah = String::new();
+                match stdin().read_line(&mut blah) {
+                    Ok(_) => todos.push(blah),
+                    Err(error) => println!("error: {error}"),
+                }
+                enable_raw_mode()?;
+            }
             Event::Key(KeyEvent {
                 code: KeyCode::Char('q'),
                 ..
