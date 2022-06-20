@@ -38,13 +38,14 @@ fn filter_and_strip<'a>(lines: &'a Vec<String>, prefix: &'a str) -> Vec<&'a str>
         .collect()
 }
 
-fn main() -> Result<()> {
-    let lines = read_lines("/home/smolloy/.config/todo_rust/items");
+const PERSIST_FILE: &str = "/home/smolloy/.config/todo_rust/items";
 
+fn main() -> Result<()> {
+    let lines = read_lines(PERSIST_FILE);
     let mut todos: Vec<&str> = filter_and_strip(&lines, "TODO: ");
     let mut dones: Vec<&str> = filter_and_strip(&lines, "DONE: ");
-    let mut curr_item = 0;
 
+    let mut curr_item = 0;
     let mut tab = Tab::TODO;
 
     let mut stdout = stdout();
