@@ -23,23 +23,26 @@ impl Tab {
     }
 }
 
-fn main() -> Result<()> {
-    let lines: Vec<String> =
-        BufReader::new(File::open("/home/smolloy/.config/todo_rust/items").expect("no such file"))
-            .lines()
-            .map(|l| l.expect("Could not parse line"))
-            .collect();
+fn read_lines(filename: &str) -> Vec<String> {
+    BufReader::new(File::open(filename).expect("no such file"))
+        .lines()
+        .map(|l| l.expect("Could not parse line"))
+        .collect()
+}
 
-    let mut todos: Vec<&str> = lines
+fn filter_and_strip<'a>(lines: &'a Vec<String>, prefix: &'a str) -> Vec<&'a str> {
+    lines
         .iter()
-        .filter(|s| s.starts_with("TODO: "))
-        .map(|s| s.strip_prefix("TODO: ").unwrap() as &str)
-        .collect();
-    let mut dones: Vec<&str> = lines
-        .iter()
-        .filter(|s| s.starts_with("DONE: "))
-        .map(|s| s.strip_prefix("DONE: ").unwrap() as &str)
-        .collect();
+        .filter(|s| s.starts_with(prefix))
+        .map(|s| s.strip_prefix(prefix).unwrap() as &str)
+        .collect()
+}
+
+fn main() -> Result<()> {
+    let lines = read_lines("/home/smolloy/.config/todo_rust/items");
+
+    let mut todos: Vec<&str> = filter_and_strip(&lines, "TODO: ");
+    let mut dones: Vec<&str> = filter_and_strip(&lines, "DONE: ");
     let mut curr_item = 0;
 
     let mut tab = Tab::TODO;
