@@ -97,6 +97,9 @@ fn main() -> Result<()> {
                 code: KeyCode::Char('a'),
                 ..
             }) => {
+                stdout
+                    .execute(Clear(ClearType::All))?
+                    .execute(MoveTo(0, 0))?;
                 disable_raw_mode()?;
                 let mut blah = String::new();
                 match stdin().read_line(&mut blah) {
