@@ -99,14 +99,14 @@ fn main() -> Result<()> {
             }) => {
                 if let Ok(mut output) = File::create(PERSIST_FILE) {
                     for item in todos {
-                        output.write_all("TODO: ".as_bytes()).expect("write failed");
-                        output.write_all(item.as_bytes()).expect("write failed");
-                        output.write_all("\n".as_bytes()).expect("write failed");
+                        output
+                            .write_all(format!("TODO: {}\n", item).as_bytes())
+                            .expect("write failed");
                     }
                     for item in dones {
-                        output.write_all("DONE: ".as_bytes()).expect("write failed");
-                        output.write_all(item.as_bytes()).expect("write failed");
-                        output.write_all("\n".as_bytes()).expect("write failed");
+                        output
+                            .write_all(format!("DONE: {}\n", item).as_bytes())
+                            .expect("write failed");
                     }
                 } else {
                     stdout.execute(PrintStyledContent(style("FAIL")))?;
