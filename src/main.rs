@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{stdout, BufRead, BufReader};
+use std::io::{stdout, BufRead, BufReader, Write};
 
 use crossterm::{
     cursor::MoveTo,
@@ -96,7 +96,23 @@ fn main() -> Result<()> {
             Event::Key(KeyEvent {
                 code: KeyCode::Char('q'),
                 ..
-            }) => break,
+            }) => {
+                if let Ok(mut output) = File::create(PERSIST_FILE) {
+                    for item in todos {
+                        output.write_all("TODO: ".as_bytes()).expect("write failed");
+                        output.write_all(item.as_bytes()).expect("write failed");
+                        output.write_all("\n".as_bytes()).expect("write failed");
+                    }
+                    for item in dones {
+                        output.write_all("DONE: ".as_bytes()).expect("write failed");
+                        output.write_all(item.as_bytes()).expect("write failed");
+                        output.write_all("\n".as_bytes()).expect("write failed");
+                    }
+                } else {
+                    stdout.execute(PrintStyledContent(style("FAIL")))?;
+                }
+                break;
+            }
             Event::Key(KeyEvent {
                 code: KeyCode::Down,
                 ..
