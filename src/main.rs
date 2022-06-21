@@ -130,6 +130,10 @@ fn main() -> Result<()> {
             Event::Key(KeyEvent {
                 code: KeyCode::Down,
                 ..
+            })
+            | Event::Key(KeyEvent {
+                code: KeyCode::Char('j'),
+                ..
             }) => {
                 if curr_item < items.len() - 1 {
                     curr_item += 1;
@@ -137,6 +141,10 @@ fn main() -> Result<()> {
             }
             Event::Key(KeyEvent {
                 code: KeyCode::Up, ..
+            })
+            | Event::Key(KeyEvent {
+                code: KeyCode::Char('k'),
+                ..
             }) => {
                 if curr_item > 0 {
                     curr_item -= 1;
