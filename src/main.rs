@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{stdin, stdout, BufRead, BufReader, Write};
 
 use crossterm::{
-    cursor::MoveTo,
+    cursor::{Hide, MoveTo},
     event::{read, Event, KeyCode, KeyEvent},
     style::{style, Attribute, Color, PrintStyledContent, ResetColor, Stylize},
     terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
@@ -55,6 +55,7 @@ fn main() -> Result<()> {
 
     loop {
         stdout
+            .execute(Hide)?
             .execute(Clear(ClearType::All))?
             .execute(MoveTo(0, 0))?;
 
