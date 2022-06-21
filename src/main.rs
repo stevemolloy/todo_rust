@@ -106,7 +106,7 @@ fn main() -> Result<()> {
                 disable_raw_mode()?;
                 let mut blah = String::new();
                 match stdin().read_line(&mut blah) {
-                    Ok(_) => todos.push(blah),
+                    Ok(_) => todos.push(blah.trim_end().to_string()),
                     Err(error) => println!("error: {error}"),
                 }
                 enable_raw_mode()?;
