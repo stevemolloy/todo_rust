@@ -99,7 +99,10 @@ fn main() -> Result<()> {
             }) => {
                 stdout
                     .execute(Clear(ClearType::All))?
-                    .execute(MoveTo(0, 0))?;
+                    .execute(MoveTo(0, 0))?
+                    .execute(PrintStyledContent(
+                        style(format!("Add a todo here:\n\r")).attribute(Attribute::Bold),
+                    ))?;
                 disable_raw_mode()?;
                 let mut blah = String::new();
                 match stdin().read_line(&mut blah) {
