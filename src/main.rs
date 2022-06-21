@@ -74,6 +74,9 @@ fn main() -> Result<()> {
                 prefix = " [X] :: ";
             }
         }
+        if curr_item >= items.len() {
+            curr_item = items.len() - 1;
+        }
 
         stdout.execute(PrintStyledContent(
             style(format!("{}\n\r", title)).attribute(Attribute::Bold),
