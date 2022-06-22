@@ -2,23 +2,25 @@ use std::fs::File;
 use std::io::{stdin, stdout, BufRead, BufReader, Write};
 
 use crossterm::{
-    cursor::{Hide, MoveTo},
-    event::{read, Event, KeyCode, KeyEvent},
+    cursor::{Hide, MoveTo, Show},
+    event::Event::Key,
+    event::KeyCode::{Char, Down, Enter, Tab, Up},
+    event::{read, KeyEvent},
     style::{style, Attribute, Color, PrintStyledContent, ResetColor, Stylize},
     terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
     ExecutableCommand, Result,
 };
 
-enum Tab {
+enum UiTab {
     TODO,
     DONE,
 }
 
-impl Tab {
+impl UiTab {
     fn toggle(&self) -> Self {
         match self {
-            Tab::TODO => Tab::DONE,
-            Tab::DONE => Tab::TODO,
+            UiTab::TODO => UiTab::DONE,
+            UiTab::DONE => UiTab::TODO,
         }
     }
 }
@@ -38,6 +40,20 @@ fn filter_and_strip<'a>(lines: &'a Vec<String>, prefix: &'a str) -> Vec<String> 
         .collect()
 }
 
+fn move_up(mut curr: usize) -> usize {
+    if curr > 0 {
+        curr -= 1;
+    }
+    return curr;
+}
+
+fn move_down(mut curr: usize, lim: usize) -> usize {
+    if curr < lim - 1 {
+        curr += 1;
+    }
+    return curr;
+}
+
 const PERSIST_FILE: &str = "/home/smolloy/.config/todo_rust/items";
 
 fn main() -> Result<()> {
@@ -46,7 +62,7 @@ fn main() -> Result<()> {
     let mut dones: Vec<String> = filter_and_strip(&lines, "DONE: ");
 
     let mut curr_item = 0;
-    let mut tab = Tab::TODO;
+    let mut tab = UiTab::TODO;
 
     let mut stdout = stdout();
     enable_raw_mode().unwrap();
@@ -63,12 +79,12 @@ fn main() -> Result<()> {
         let title;
         let prefix;
         match tab {
-            Tab::TODO => {
+            UiTab::TODO => {
                 title = "[TODO] DONE";
                 items = todos.clone();
                 prefix = " [ ] :: ";
             }
-            Tab::DONE => {
+            UiTab::DONE => {
                 title = " TODO [DONE]";
                 items = dones.clone();
                 prefix = " [X] :: ";
@@ -97,11 +113,11 @@ fn main() -> Result<()> {
         }
 
         match read().unwrap() {
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('a'),
-                ..
+            Key(KeyEvent {
+                code: Char('a'), ..
             }) => {
                 stdout
+                    .execute(Show)?
                     .execute(Clear(ClearType::All))?
                     .execute(MoveTo(0, 0))?
                     .execute(PrintStyledContent(
@@ -114,10 +130,10 @@ fn main() -> Result<()> {
                     Err(error) => println!("error: {error}"),
                 }
                 enable_raw_mode()?;
+                stdout.execute(Hide)?;
             }
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('q'),
-                ..
+            Key(KeyEvent {
+                code: Char('q'), ..
             }) => {
                 if let Ok(mut output) = File::create(PERSIST_FILE) {
                     for item in todos {
@@ -131,54 +147,55 @@ fn main() -> Result<()> {
                 }
                 break;
             }
-            Event::Key(KeyEvent {
-                code: KeyCode::Down,
-                ..
-            })
-            | Event::Key(KeyEvent {
-                code: KeyCode::Char('j'),
-                ..
+            Key(KeyEvent { code: Down, .. })
+            | Key(KeyEvent {
+                code: Char('j'), ..
+            }) => curr_item = move_down(curr_item, items.len()),
+            Key(KeyEvent { code: Up, .. })
+            | Key(KeyEvent {
+                code: Char('k'), ..
+            }) => curr_item = move_up(curr_item),
+            Key(KeyEvent {
+                code: Char('J'), ..
             }) => {
                 if curr_item < items.len() - 1 {
+                    match tab {
+                        UiTab::TODO => todos.swap(curr_item, curr_item + 1),
+                        UiTab::DONE => dones.swap(curr_item, curr_item + 1),
+                    }
                     curr_item += 1;
                 }
             }
-            Event::Key(KeyEvent {
-                code: KeyCode::Up, ..
-            })
-            | Event::Key(KeyEvent {
-                code: KeyCode::Char('k'),
-                ..
+            Key(KeyEvent {
+                code: Char('K'), ..
             }) => {
-                if curr_item > 0 {
+                if curr_item < items.len() && curr_item > 0 {
+                    match tab {
+                        UiTab::TODO => todos.swap(curr_item, curr_item - 1),
+                        UiTab::DONE => dones.swap(curr_item, curr_item - 1),
+                    }
                     curr_item -= 1;
                 }
             }
-            Event::Key(KeyEvent {
-                code: KeyCode::Tab, ..
-            }) => {
+            Key(KeyEvent { code: Tab, .. }) => {
                 curr_item = 0;
                 tab = tab.toggle();
             }
-            Event::Key(KeyEvent {
-                code: KeyCode::Enter,
-                ..
-            }) => match tab {
-                Tab::TODO => {
+            Key(KeyEvent { code: Enter, .. }) => match tab {
+                UiTab::TODO => {
                     dones.push(todos.remove(curr_item));
                 }
-                Tab::DONE => {
+                UiTab::DONE => {
                     todos.push(dones.remove(curr_item));
                 }
             },
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('d'),
-                ..
+            Key(KeyEvent {
+                code: Char('d'), ..
             }) => match tab {
-                Tab::TODO => {
+                UiTab::TODO => {
                     todos.remove(curr_item);
                 }
-                Tab::DONE => {
+                UiTab::DONE => {
                     dones.remove(curr_item);
                 }
             },
