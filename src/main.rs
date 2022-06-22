@@ -14,13 +14,15 @@ use crossterm::{
 enum UiTab {
     TODO,
     DONE,
+    ARCHIVED,
 }
 
 impl UiTab {
-    fn toggle(&self) -> Self {
+    fn rotate(&self) -> Self {
         match self {
             UiTab::TODO => UiTab::DONE,
-            UiTab::DONE => UiTab::TODO,
+            UiTab::DONE => UiTab::ARCHIVED,
+            UiTab::ARCHIVED => UiTab::TODO,
         }
     }
 }
@@ -48,6 +50,9 @@ fn move_up(mut curr: usize) -> usize {
 }
 
 fn move_down(mut curr: usize, lim: usize) -> usize {
+    if lim == 0 {
+        return curr;
+    }
     if curr < lim - 1 {
         curr += 1;
     }
@@ -60,6 +65,7 @@ fn main() -> Result<()> {
     let lines = read_lines(PERSIST_FILE);
     let mut todos: Vec<String> = filter_and_strip(&lines, "TODO: ");
     let mut dones: Vec<String> = filter_and_strip(&lines, "DONE: ");
+    let mut archiveds: Vec<String> = filter_and_strip(&lines, "ARCHIVED: ");
 
     let mut curr_item = 0;
     let mut tab = UiTab::TODO;
@@ -80,17 +86,22 @@ fn main() -> Result<()> {
         let prefix;
         match tab {
             UiTab::TODO => {
-                title = "[TODO] DONE";
+                title = "[TODO] DONE  ARCHIVED ";
                 items = todos.clone();
                 prefix = " [ ] :: ";
             }
             UiTab::DONE => {
-                title = " TODO [DONE]";
+                title = " TODO [DONE] ARCHIVED ";
                 items = dones.clone();
                 prefix = " [X] :: ";
             }
+            UiTab::ARCHIVED => {
+                title = " TODO  DONE [ARCHIVED]";
+                items = archiveds.clone();
+                prefix = " --- :: ";
+            }
         }
-        if curr_item >= items.len() {
+        if curr_item >= items.len() && curr_item != 0 {
             curr_item = items.len() - 1;
         }
 
@@ -162,6 +173,7 @@ fn main() -> Result<()> {
                     match tab {
                         UiTab::TODO => todos.swap(curr_item, curr_item + 1),
                         UiTab::DONE => dones.swap(curr_item, curr_item + 1),
+                        UiTab::ARCHIVED => archiveds.swap(curr_item, curr_item + 1),
                     }
                     curr_item += 1;
                 }
@@ -173,13 +185,14 @@ fn main() -> Result<()> {
                     match tab {
                         UiTab::TODO => todos.swap(curr_item, curr_item - 1),
                         UiTab::DONE => dones.swap(curr_item, curr_item - 1),
+                        UiTab::ARCHIVED => archiveds.swap(curr_item, curr_item - 1),
                     }
                     curr_item -= 1;
                 }
             }
             Key(KeyEvent { code: Tab, .. }) => {
                 curr_item = 0;
-                tab = tab.toggle();
+                tab = tab.rotate();
             }
             Key(KeyEvent { code: Enter, .. }) => match tab {
                 UiTab::TODO => {
@@ -188,16 +201,18 @@ fn main() -> Result<()> {
                 UiTab::DONE => {
                     todos.push(dones.remove(curr_item));
                 }
+                UiTab::ARCHIVED => (),
             },
             Key(KeyEvent {
                 code: Char('d'), ..
             }) => match tab {
                 UiTab::TODO => {
-                    todos.remove(curr_item);
+                    archiveds.push(todos.remove(curr_item));
                 }
                 UiTab::DONE => {
-                    dones.remove(curr_item);
+                    archiveds.push(dones.remove(curr_item));
                 }
+                UiTab::ARCHIVED => (),
             },
             _ => (),
         }
