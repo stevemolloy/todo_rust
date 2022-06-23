@@ -1,10 +1,11 @@
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io::{stdin, stdout, BufRead, BufReader, Write};
 
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::Event::Key,
-    event::KeyCode::{Char, Down, Enter, Tab, Up},
+    event::KeyCode::{BackTab, Char, Down, Enter, Tab, Up},
     event::{read, KeyEvent},
     style::{style, Attribute, Color, PrintStyledContent, ResetColor, Stylize},
     terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
@@ -25,6 +26,14 @@ impl UiTab {
             UiTab::ARCHIVED => UiTab::TODO,
         }
     }
+
+    fn rotate_back(&self) -> Self {
+        match self {
+            UiTab::TODO => UiTab::ARCHIVED,
+            UiTab::DONE => UiTab::TODO,
+            UiTab::ARCHIVED => UiTab::DONE,
+        }
+    }
 }
 
 fn read_lines(filename: &str) -> Vec<String> {
@@ -34,7 +43,7 @@ fn read_lines(filename: &str) -> Vec<String> {
         .collect()
 }
 
-fn filter_and_strip<'a>(lines: &'a Vec<String>, prefix: &'a str) -> Vec<String> {
+fn filter_and_strip<'a>(lines: &'a Vec<String>, prefix: &'a str) -> VecDeque<String> {
     lines
         .iter()
         .filter(|s| s.starts_with(prefix))
@@ -42,9 +51,11 @@ fn filter_and_strip<'a>(lines: &'a Vec<String>, prefix: &'a str) -> Vec<String> 
         .collect()
 }
 
-fn move_up(mut curr: usize) -> usize {
+fn move_up(mut curr: usize, lim: usize) -> usize {
     if curr > 0 {
         curr -= 1;
+    } else {
+        curr = lim - 1;
     }
     return curr;
 }
@@ -55,6 +66,8 @@ fn move_down(mut curr: usize, lim: usize) -> usize {
     }
     if curr < lim - 1 {
         curr += 1;
+    } else {
+        curr = 0;
     }
     return curr;
 }
@@ -63,9 +76,9 @@ const PERSIST_FILE: &str = "/home/smolloy/.config/todo_rust/items";
 
 fn main() -> Result<()> {
     let lines = read_lines(PERSIST_FILE);
-    let mut todos: Vec<String> = filter_and_strip(&lines, "TODO: ");
-    let mut dones: Vec<String> = filter_and_strip(&lines, "DONE: ");
-    let mut archiveds: Vec<String> = filter_and_strip(&lines, "ARCHIVED: ");
+    let mut todos: VecDeque<String> = filter_and_strip(&lines, "TODO: ");
+    let mut dones: VecDeque<String> = filter_and_strip(&lines, "DONE: ");
+    let mut archiveds: VecDeque<String> = filter_and_strip(&lines, "ARCHIVED: ");
 
     let mut curr_item = 0;
     let mut tab = UiTab::TODO;
@@ -137,7 +150,7 @@ fn main() -> Result<()> {
                 disable_raw_mode()?;
                 let mut blah = String::new();
                 match stdin().read_line(&mut blah) {
-                    Ok(_) => todos.push(blah.trim_end().to_string()),
+                    Ok(_) => todos.push_front(blah.trim_end().to_string()),
                     Err(error) => println!("error: {error}"),
                 }
                 enable_raw_mode()?;
@@ -165,7 +178,7 @@ fn main() -> Result<()> {
             Key(KeyEvent { code: Up, .. })
             | Key(KeyEvent {
                 code: Char('k'), ..
-            }) => curr_item = move_up(curr_item),
+            }) => curr_item = move_up(curr_item, items.len()),
             Key(KeyEvent {
                 code: Char('J'), ..
             }) => {
@@ -194,25 +207,36 @@ fn main() -> Result<()> {
                 curr_item = 0;
                 tab = tab.rotate();
             }
+            Key(KeyEvent { code: BackTab, .. }) => {
+                curr_item = 0;
+                tab = tab.rotate_back();
+            }
             Key(KeyEvent { code: Enter, .. }) => match tab {
-                UiTab::TODO => {
-                    dones.push(todos.remove(curr_item));
-                }
-                UiTab::DONE => {
-                    todos.push(dones.remove(curr_item));
-                }
+                UiTab::TODO => match todos.remove(curr_item) {
+                    Some(n) => dones.push_front(n),
+                    None => (),
+                },
+                UiTab::DONE => match dones.remove(curr_item) {
+                    Some(n) => todos.push_front(n),
+                    None => (),
+                },
                 UiTab::ARCHIVED => (),
             },
             Key(KeyEvent {
                 code: Char('d'), ..
             }) => match tab {
-                UiTab::TODO => {
-                    archiveds.push(todos.remove(curr_item));
-                }
-                UiTab::DONE => {
-                    archiveds.push(dones.remove(curr_item));
-                }
-                UiTab::ARCHIVED => (),
+                UiTab::TODO => match todos.remove(curr_item) {
+                    Some(n) => archiveds.push_front(n),
+                    None => (),
+                },
+                UiTab::DONE => match dones.remove(curr_item) {
+                    Some(n) => archiveds.push_front(n),
+                    None => (),
+                },
+                UiTab::ARCHIVED => match archiveds.remove(curr_item) {
+                    Some(n) => todos.push_front(n),
+                    None => (),
+                },
             },
             _ => (),
         }
