@@ -72,6 +72,19 @@ fn move_down(mut curr: usize, lim: usize) -> usize {
     return curr;
 }
 
+fn save(todo_list: VecDeque<String>, done_list: VecDeque<String>) {
+    if let Ok(mut output) = File::create(PERSIST_FILE) {
+        for item in todo_list {
+            writeln!(output, "TODO: {}\n", item).unwrap();
+        }
+        for item in done_list {
+            writeln!(output, "DONE: {}\n", item).unwrap();
+        }
+    } else {
+        stdout().execute(PrintStyledContent(style("FAIL"))).unwrap();
+    }
+}
+
 const PERSIST_FILE: &str = "/home/smolloy/.config/todo_rust/items";
 
 fn main() -> Result<()> {
@@ -159,18 +172,12 @@ fn main() -> Result<()> {
             Key(KeyEvent {
                 code: Char('q'), ..
             }) => {
-                if let Ok(mut output) = File::create(PERSIST_FILE) {
-                    for item in todos {
-                        writeln!(output, "TODO: {}\n", item).unwrap();
-                    }
-                    for item in dones {
-                        writeln!(output, "DONE: {}\n", item).unwrap();
-                    }
-                } else {
-                    stdout.execute(PrintStyledContent(style("FAIL")))?;
-                }
+                save(todos.clone(), dones.clone());
                 break;
             }
+            Key(KeyEvent {
+                code: Char('w'), ..
+            }) => save(todos.clone(), dones.clone()),
             Key(KeyEvent { code: Down, .. })
             | Key(KeyEvent {
                 code: Char('j'), ..
